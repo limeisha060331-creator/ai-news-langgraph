@@ -6,7 +6,7 @@ import { buildIngestionGraph } from "./graph/ingestion.js";
 import { buildQueryGraph } from "./graph/query.js";
 import { finalizeStats, type IngestionStateType } from "./graph/state.js";
 import type { QueryStateType } from "./graph/query.js";
-import { ensureIndex } from "./redis/schema.js";
+import { ensureIndex, indexHealth } from "./redis/schema.js";
 
 function usage(): void {
   process.stdout.write(
@@ -94,7 +94,9 @@ async function calibrateCommand(): Promise<number> {
   try {
     const report = await calibrate(runtime.deps.embedder, CALIBRATION_PAIRS);
     process.stdout.write(`\n${formatReport(report)}\n\n`);
-    return report.separable ? 0 : 1;
+    // 退出码表示建议阈值能不能直接用：只要没有把不同事件判重（误杀为 0）
+    // 就算可用。单阈值分不开是常态，两级阈值就是为这种情况设计的。
+    return report.expected.falseDrops === 0 ? 0 : 1;
   } finally {
     await runtime.close();
   }
@@ -112,6 +114,17 @@ async function redisInit(): Promise<number> {
       `索引 ${runtime.config.REDIS_INDEX}：${result === "created" ? "已创建" : "已存在"}` +
         `（维度 ${runtime.deps.embedder.dim}，编码器 ${runtime.deps.embedder.name}）\n`,
     );
+    const health = await indexHealth(runtime.deps.redis, runtime.config.REDIS_INDEX);
+    process.stdout.write(
+      `当前文档数 ${health.numDocs}，索引失败 ${health.indexingFailures}` +
+        `${health.lastError ? `（最近错误：${health.lastError}）` : ""}\n`,
+    );
+    if (health.indexingFailures > 0) {
+      process.stdout.write(
+        "索引失败不为 0：字段类型和文档里的实际类型对不上，逐条核对 SCHEMA 里的声明。\n",
+      );
+      return 1;
+    }
     return 0;
   } finally {
     await runtime.close();

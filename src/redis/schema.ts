@@ -53,13 +53,6 @@ export function similarityFromScore(score: number): number {
   return 1 - score;
 }
 
-function epochSeconds(value: string | number | Date): number {
-  if (typeof value === "number") return Math.floor(value);
-  if (value instanceof Date) return Math.floor(value.getTime() / 1000);
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : Math.floor(Date.now() / 1000);
-}
-
 /**
  * 建索引。字段用 AS 起别名，查询和返回都用别名。
  * embedding 的维度必须和 embedding 模型输出一致，改模型要删索引重建。
@@ -78,8 +71,15 @@ export async function ensureIndex(
     indexName,
     {
       "$.urlKey": { type: "TAG", AS: "urlKey" },
+      // title 必须显式声明才能被 RETURN 取回。查询只按 urlKey / pushedAt 过滤，
+      // 这里建索引纯粹是为了让检索结果能带上标题——少了它，命中列表就只有来源没有标题。
+      "$.title": { type: "TEXT", AS: "title" },
       "$.source": { type: "TAG", AS: "source" },
-      "$.published": { type: "NUMERIC", AS: "published", SORTABLE: true },
+      // published 是 RSS 给的 RFC-822 日期字符串（"Fri, 02 Oct 2026 00:00:00 GMT"），
+      // 不是数字。声明成 NUMERIC 会让**每一条文档**索引失败，索引里一条都看不见——
+      // 而且失败只体现在 FT.INFO 的 indexing failures 里，查询时只是静默返回空。
+      // 时间范围过滤走 pushedAt（epoch 秒），这个字段只作展示，用 TAG 存即可。
+      "$.published": { type: "TAG", AS: "published" },
       "$.pushedAt": { type: "NUMERIC", AS: "pushedAt", SORTABLE: true },
       "$.importance": { type: "NUMERIC", AS: "importance" },
       "$.embedding": {
@@ -213,5 +213,43 @@ export async function listSince(
 }
 
 export function daysAgoEpochSeconds(days: number): number {
-  return epochSeconds(Date.now() - days * 24 * 60 * 60 * 1000);
+  // 除以 1000 这一步不能省：Date.now() 是毫秒，文档里的 pushedAt 是秒。
+  // 少了它过滤条件会变成「某个未来的时间点」，把历史全过滤掉，
+  // 而且不报错——查询只是安静地返回空。
+  return Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
+}
+
+export interface IndexHealth {
+  numDocs: number;
+  indexingFailures: number;
+  lastError: string | null;
+}
+
+/**
+ * 索引健康度。
+ *
+ * 加这个函数是因为踩过一次静默故障：字段类型声明错了（把日期字符串声明成 NUMERIC），
+ * 结果是每一条文档索引失败，但写入和查询都不报错——FT.SEARCH 就是安静地返回空。
+ * 只有 FT.INFO 里的 indexing failures 能看出来，所以把它显式暴露出来。
+ */
+export async function indexHealth(client: RedisClient, indexName: string): Promise<IndexHealth> {
+  const raw = (await client.ft.info(indexName)) as unknown;
+  const map = new Map<string, unknown>();
+
+  if (Array.isArray(raw)) {
+    for (let index = 0; index + 1 < raw.length; index += 2) {
+      map.set(String(raw[index]), raw[index + 1]);
+    }
+  } else if (raw && typeof raw === "object") {
+    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+      map.set(key, value);
+    }
+  }
+
+  const lastError = map.get("last indexing error");
+  return {
+    numDocs: Number(map.get("num_docs") ?? 0),
+    indexingFailures: Number(map.get("hash_indexing_failures") ?? 0),
+    lastError: typeof lastError === "string" && lastError.length > 0 ? lastError : null,
+  };
 }
