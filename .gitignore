@@ -1,0 +1,17 @@
+node_modules/
+dist/
+out/
+
+# 运行产物
+outbox/
+*.log
+
+# 密钥：只提交 .env.example
+.env
+.env.local
+
+# 编辑器与系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

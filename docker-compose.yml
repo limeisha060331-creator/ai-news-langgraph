@@ -1,0 +1,20 @@
+# 只有 Redis 一个服务。用带 RediSearch 的镜像，普通 redis:6/7 没有向量检索。
+services:
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: ai-news-langgraph-redis
+    ports:
+      - "6379:6379"
+    environment:
+      # 去重记忆是跨天状态的唯一来源，丢了会导致第二天全量重推
+      REDIS_ARGS: "--appendonly yes --appendfsync everysec"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  redis-data:

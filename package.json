@@ -1,0 +1,32 @@
+{
+  "name": "ai-news-langgraph",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI 资讯流水线的第二实现：用 LangGraph.js + Redis 重做抓取、语义去重与检索问答",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "ingest": "tsx src/index.ts ingest",
+    "query": "tsx src/index.ts query",
+    "calibrate": "tsx src/index.ts calibrate",
+    "redis:init": "tsx src/index.ts redis-init",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --pool=threads"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.2.17",
+    "@langchain/langgraph": "^1.4.21",
+    "dotenv": "^18.0.6",
+    "fast-xml-parser": "^5.11.2",
+    "redis": "^6.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

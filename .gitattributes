@@ -1,0 +1,13 @@
+# 换行符在仓库层面定死，不受各机器 core.autocrlf 影响。
+# 本机系统级 gitconfig 里 core.autocrlf=true，不钉住每次 add 都会报
+# "LF will be replaced by CRLF"，跨机器协作还会产生整文件级 diff。
+* text=auto eol=lf
+
+# Windows 脚本按 Windows 习惯检出成 CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制不做换行转换
+*.png binary
+*.ico binary
