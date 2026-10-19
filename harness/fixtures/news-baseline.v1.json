@@ -1,0 +1,449 @@
+{
+  "version": 1,
+  "name": "news-baseline.v1",
+  "note": "2026-10-08 的真实运行结构（三源条数与来源产量差 4 倍），条目文本为脱敏重写。所有条目都带非空 raw，刻意避开「空 raw + mock 摘要」产生的常量后缀污染。",
+  "runDate": "2026-10-08",
+  "env": {
+    "REDIS_INDEX": "idx:article",
+    "MIN_PER_SOURCE": "3",
+    "TOP_N": "15",
+    "HISTORY_DAYS": "30",
+    "DUP_THRESHOLD": "0.9",
+    "GRAY_LOW": "0.8",
+    "SAME_SOURCE_MARGIN": "0.03",
+    "KNN_TOP_K": "5",
+    "EMBEDDING_PROVIDER": "mock",
+    "EMBEDDING_DIM": "256",
+    "LLM_PROVIDER": "mock",
+    "FETCH_RETRIES": "0"
+  },
+  "sources": {
+    "hn": [
+      {
+        "id": "41",
+        "title": "OpenAI ships GPT-5.1 with a shorter context window",
+        "url": "https://openai.com/index/gpt-5-1/?utm_source=hn&utm_medium=social",
+        "raw": "GPT-5.1 is rolling out in ChatGPT and the API. Context window is shorter than 5.0.",
+        "published": "2026-10-08T01:00:00Z",
+        "score": 512
+      },
+      {
+        "id": "42",
+        "title": "GPT-5.1 is out",
+        "url": "https://www.openai.com/index/gpt-5-1/",
+        "raw": "Same story, different link, tracking parameters stripped by the submitter.",
+        "published": "2026-10-08T01:10:00Z",
+        "score": 380
+      },
+      {
+        "id": "43",
+        "title": "Rust 1.90 released",
+        "url": "https://blog.rust-lang.org/2026/10/01/Rust-1.90.0.html",
+        "raw": "Rust 1.90 ships the new borrow checker for async blocks and faster incremental builds.",
+        "published": "2026-10-01T09:00:00Z",
+        "score": 401
+      },
+      {
+        "id": "44",
+        "title": "Rust 1.91 released",
+        "url": "https://blog.rust-lang.org/2026/10/08/Rust-1.91.0.html",
+        "raw": "Rust 1.91 fixes a codegen regression from last month and bumps LLVM.",
+        "published": "2026-10-08T08:00:00Z",
+        "score": 355
+      },
+      {
+        "id": "45",
+        "title": "Show HN: a tiny workflow engine in 400 lines",
+        "url": "",
+        "raw": "A weekend project: durable steps, retries and a JSON log, shipped as a single binary.",
+        "published": "2026-10-08T02:00:00Z",
+        "score": 288
+      },
+      {
+        "id": "46",
+        "title": "Ask HN: how do you test LLM pipelines?",
+        "url": "",
+        "raw": "I keep shipping prompt changes that break the output format. What do you use?",
+        "published": "2026-10-08T03:00:00Z",
+        "score": 240
+      },
+      {
+        "id": "47",
+        "title": "Anthropic raises $4B at $180B valuation",
+        "url": "https://techcrunch.com/2026/10/07/anthropic-raises-4b/",
+        "raw": "The round is led by existing investors and values the company at 180 billion dollars.",
+        "published": "2026-10-07T18:00:00Z",
+        "score": 310
+      },
+      {
+        "id": "48",
+        "title": "DeepMind open-sources a protein model",
+        "url": "https://deepmind.google/discover/blog/protein-model-v3/",
+        "raw": "Open weights and a 3x faster structure predictor for single chain proteins.",
+        "published": "2026-10-07T12:00:00Z",
+        "score": 199
+      },
+      {
+        "id": "49",
+        "title": "The browser is the new OS",
+        "url": "https://example.org/browser-os",
+        "raw": "An argument that the app runtime moved into the browser and nobody noticed.",
+        "published": "2026-10-06T10:00:00Z",
+        "score": 150
+      },
+      {
+        "id": "50",
+        "title": "Postgres 19 beta",
+        "url": "https://www.postgresql.org/about/news/postgresql-19-beta-1/",
+        "raw": "Beta 1 is out with async io and a rewritten autovacuum scheduler.",
+        "published": "2026-10-05T10:00:00Z",
+        "score": 140
+      },
+      {
+        "id": "51",
+        "title": "We rewrote our scheduler in Zig",
+        "url": "https://example.net/zig-scheduler",
+        "raw": "Same throughput, a quarter of the memory, and one fewer service to page on.",
+        "published": "2026-10-04T10:00:00Z",
+        "score": 90
+      }
+    ],
+    "openai": [
+      {
+        "title": "GPT-5.1 is now available",
+        "url": "https://openai.com/index/gpt-5-1/",
+        "raw": "GPT-5.1 is available today in ChatGPT and the API for every paid plan.",
+        "published": "2026-10-08T00:00:00Z"
+      },
+      {
+        "title": "Introducing the Responses API",
+        "url": "https://openai.com/index/responses-api/",
+        "raw": "A unified interface for building agents with tools, streaming and state.",
+        "published": "2026-10-07T00:00:00Z"
+      },
+      {
+        "title": "Introducing Codex for teams",
+        "url": "https://openai.com/index/codex-teams/",
+        "raw": "Codex is now available for teams with shared workspaces and admin controls.",
+        "published": "2026-10-06T00:00:00Z"
+      },
+      {
+        "title": "Introducing Codex for teams today",
+        "url": "https://openai.com/index/codex-teams-notes/",
+        "raw": "Codex is now available for teams with shared workspaces and admin controls.",
+        "published": "2026-10-06T06:00:00Z"
+      },
+      {
+        "title": "OpenAI and Broadcom announce custom silicon",
+        "url": "https://openai.com/index/custom-silicon/",
+        "raw": "The first accelerator built together with Broadcom is now sampling to internal teams.",
+        "published": "2026-10-05T00:00:00Z"
+      },
+      {
+        "title": "Sora gets longer clips",
+        "url": "https://openai.com/index/sora-longer-clips/",
+        "raw": "Clips up to sixty seconds, with a storyboard editor for shot planning.",
+        "published": "2026-10-04T00:00:00Z"
+      },
+      {
+        "title": "Voice mode ships in the desktop app",
+        "url": "https://openai.com/index/voice-desktop/",
+        "raw": "Voice conversations now run on the local client for macOS and Windows.",
+        "published": "2026-10-03T00:00:00Z"
+      },
+      {
+        "title": "Batch API adds webhook callbacks",
+        "url": "https://openai.com/index/batch-webhooks/",
+        "raw": "Batch jobs can call a webhook when a chunk finishes, instead of polling for state.",
+        "published": "2026-10-02T00:00:00Z"
+      },
+      {
+        "title": "Agents SDK preview",
+        "url": "https://openai.com/index/agents-sdk-preview/",
+        "raw": "A small SDK for multi step tool use, with tracing built in.",
+        "published": "2026-09-30T00:00:00Z"
+      },
+      {
+        "title": "Eval harness for output schemas",
+        "url": "https://openai.com/index/eval-harness-structured/",
+        "raw": "Compare prompts against a frozen dataset and get a regression diff for each schema field.",
+        "published": "2026-09-29T00:00:00Z"
+      },
+      {
+        "title": "Eval harness for output formats",
+        "url": "https://openai.com/index/eval-harness-tools/",
+        "raw": "Compare prompts against a frozen dataset and get a regression diff for each format field.",
+        "published": "2026-09-28T00:00:00Z"
+      },
+      {
+        "title": "Image generation gets reference images",
+        "url": "https://openai.com/index/reference-images/",
+        "raw": "Upload up to four reference images to keep a character consistent across shots.",
+        "published": "2026-09-27T00:00:00Z"
+      },
+      {
+        "title": "Usage tiers for the API",
+        "url": "https://openai.com/index/usage-tiers/",
+        "raw": "New spending tiers with hard caps for production keys and better alerting.",
+        "published": "2026-09-26T00:00:00Z"
+      },
+      {
+        "title": "Red teaming report for Q3",
+        "url": "https://openai.com/index/red-team-q3/",
+        "raw": "Findings from external red teams across cyber and bio risk categories.",
+        "published": "2026-09-25T00:00:00Z"
+      },
+      {
+        "title": "Enterprise controls for SCIM",
+        "url": "https://openai.com/index/scim/",
+        "raw": "SCIM provisioning and audit log streaming for enterprise workspaces.",
+        "published": "2026-09-24T00:00:00Z"
+      },
+      {
+        "title": "Education pilot with three universities",
+        "url": "https://openai.com/index/education-pilot/",
+        "raw": "Course integrated access and a teaching console for instructors.",
+        "published": "2026-09-23T00:00:00Z"
+      },
+      {
+        "title": "Robotics hand dataset released",
+        "url": "https://openai.com/index/robotics-hands/",
+        "raw": "Motion capture data for dexterous manipulation, licensed for research use.",
+        "published": "2026-09-22T00:00:00Z"
+      },
+      {
+        "title": "Speech translation in real time",
+        "url": "https://openai.com/index/realtime-translation/",
+        "raw": "Low latency translation across forty languages in the voice API.",
+        "published": "2026-09-21T00:00:00Z"
+      },
+      {
+        "title": "Prompt versioning in the dashboard",
+        "url": "https://openai.com/index/prompt-versioning/",
+        "raw": "Name, compare and roll back prompt versions without redeploying.",
+        "published": "2026-09-20T00:00:00Z"
+      },
+      {
+        "title": "Embedding model refresh",
+        "url": "https://openai.com/index/embeddings-refresh/",
+        "raw": "Smaller vectors at the same retrieval quality, cheaper to index.",
+        "published": "2026-09-19T00:00:00Z"
+      },
+      {
+        "title": "ChatGPT memory controls",
+        "url": "https://openai.com/index/memory-controls/",
+        "raw": "Per conversation memory with an export and delete surface.",
+        "published": "2026-09-18T00:00:00Z"
+      },
+      {
+        "title": "Moderation endpoint update",
+        "url": "https://openai.com/index/moderation-update/",
+        "raw": "New categories for self harm and extremism with calibrated scores.",
+        "published": "2026-09-17T00:00:00Z"
+      },
+      {
+        "title": "Retention options for logs",
+        "url": "https://openai.com/index/retention/",
+        "raw": "Configurable retention windows for API logs and uploaded files.",
+        "published": "2026-09-16T00:00:00Z"
+      },
+      {
+        "title": "Governance council announced",
+        "url": "https://openai.com/index/governance-council/",
+        "raw": "An external council reviewing deployment decisions every quarter.",
+        "published": "2026-09-15T00:00:00Z"
+      },
+      {
+        "title": "Service status page changes",
+        "url": "https://openai.com/index/status-page/",
+        "raw": "Incident history is now available as a feed and a small JSON endpoint.",
+        "published": "2026-09-14T00:00:00Z"
+      }
+    ],
+    "qbitai": [
+      {
+        "title": "OpenAI 发布 GPT-5.1，上下文窗口缩短",
+        "url": "https://www.qbitai.com/2026/10/100001.html",
+        "raw": "GPT-5.1 今天在 ChatGPT 与 API 全量开放，上下文窗口比上一代更短。",
+        "published": "2026-10-08T02:00:00Z"
+      },
+      {
+        "title": "国产大模型发布新版本，参数 700 亿",
+        "url": "https://www.qbitai.com/2026/10/100002.html",
+        "raw": "新版本在中文推理与工具调用上有提升，权重将于下周开放。",
+        "published": "2026-10-08T01:00:00Z"
+      },
+      {
+        "title": "开源智能体框架新增可观测性",
+        "url": "https://www.qbitai.com/2026/10/100003.html",
+        "raw": "框架加入链路追踪与回放，失败步骤可以单步重跑。",
+        "published": "2026-10-07T23:00:00Z"
+      },
+      {
+        "title": "上周 AI 要闻回顾",
+        "url": "https://www.qbitai.com/2026/10/previous-week/",
+        "raw": "一周要闻：模型发布、融资与算力建设。",
+        "published": "2026-10-07T12:00:00Z"
+      },
+      {
+        "title": "多模态模型支持长视频理解",
+        "url": "https://www.qbitai.com/2026/10/100005.html",
+        "raw": "单次可处理三十分钟视频，按镜头切分做检索。",
+        "published": "2026-10-06T12:00:00Z"
+      },
+      {
+        "title": "推理芯片产能扩张",
+        "url": "https://www.qbitai.com/2026/10/100006.html",
+        "raw": "两家代工厂宣布扩产，交期从九个月缩短到四个月。",
+        "published": "2026-10-05T12:00:00Z"
+      }
+    ]
+  },
+  "history": [
+    {
+      "urlKey": "https://qbitai.com/2026/10/previous-week",
+      "title": "上周 AI 要闻回顾",
+      "source": "量子位",
+      "text": "上周 AI 要闻回顾 一周要闻：模型发布、融资与算力建设。",
+      "pushedDaysAgo": 3
+    },
+    {
+      "urlKey": "https://openai.com/index/agents-sdk-preview",
+      "title": "Agents SDK preview",
+      "source": "OpenAI Blog",
+      "text": "Agents SDK preview A small SDK for multi step tool use, with tracing built in.",
+      "pushedDaysAgo": 10
+    },
+    {
+      "urlKey": "https://openai.com/index/responses-api-preview",
+      "title": "Introducing the Responses API",
+      "source": "OpenAI Blog",
+      "text": "Introducing the Responses API A unified interface for building agents with tools, streaming and state.",
+      "pushedDaysAgo": 5
+    }
+  ],
+  "cases": [
+    {
+      "id": "batch-url-dup",
+      "description": "同一次抓取里两条链接归一化后相同，后一条被批内去重拦下",
+      "source": "HN",
+      "title": "GPT-5.1 is out",
+      "expect": "dropped:duplicate-url-batch"
+    },
+    {
+      "id": "cross-source-url-dup",
+      "description": "同一链接同时出现在 HN 与官方博客，先解析到的留下",
+      "source": "OpenAI Blog",
+      "title": "GPT-5.1 is now available",
+      "expect": "dropped:duplicate-url-batch"
+    },
+    {
+      "id": "history-url-dup",
+      "description": "三天前推过的链接今天又被抓到，必须被历史过滤拦下",
+      "source": "量子位",
+      "title": "上周 AI 要闻回顾",
+      "expect": "dropped:duplicate-url-history"
+    },
+    {
+      "id": "history-url-dup-openai",
+      "description": "十天前推过的官方博客条目，同一条 URL 再次命中",
+      "source": "OpenAI Blog",
+      "title": "Agents SDK preview",
+      "expect": "dropped:duplicate-url-history"
+    },
+    {
+      "id": "history-semantic-dup",
+      "description": "链接不同但内容同源，靠历史 KNN 判重（这条守的是向量这条路，不是 URL 那条）",
+      "source": "OpenAI Blog",
+      "title": "Introducing the Responses API",
+      "expect": "dropped:semantic-duplicate",
+      "expectScope": "history"
+    },
+    {
+      "id": "batch-semantic-dup",
+      "description": "同一来源的同一件事发了两篇，靠批内余弦 + 同源加严判重",
+      "source": "OpenAI Blog",
+      "title": "Introducing Codex for teams today",
+      "expect": "dropped:semantic-duplicate",
+      "expectScope": "batch"
+    },
+    {
+      "id": "different-event-kept",
+      "description": "相邻版本号（Rust 1.90 / 1.91）不能被当成重复，这是标定里最难的一对",
+      "source": "HN",
+      "title": "Rust 1.91 released",
+      "expect": "kept"
+    },
+    {
+      "id": "cross-language-kept",
+      "description": "英文原文与中文报道是同一事件，但词法编码器判不出来——已知边界，换真模型后这条应当改判",
+      "source": "量子位",
+      "title": "OpenAI 发布 GPT-5.1，上下文窗口缩短",
+      "expect": "kept"
+    },
+    {
+      "id": "same-source-margin-suspect",
+      "description": "同源第二条相似度 0.86 左右：过了 0.8 要标记，但没过 0.9+0.03 的同源阈值，不能判重。拿掉 SAME_SOURCE_MARGIN 这条就会变红",
+      "source": "OpenAI Blog",
+      "title": "Eval harness for output formats",
+      "expect": "suspect"
+    },
+    {
+      "id": "overflow-truncated",
+      "description": "产量大的源超出总量上限的部分被记为 overflow，而不是静默消失",
+      "source": "OpenAI Blog",
+      "title": "Service status page changes",
+      "expect": "dropped:overflow"
+    }
+  ],
+  "expect": {
+    "stats": {
+      "fetched": 42,
+      "afterUrlDedup": 38,
+      "droppedByUrl": 4,
+      "selected": 15,
+      "embedded": 15,
+      "semanticDropped": 2,
+      "semanticSuspect": 1,
+      "delivered": 13,
+      "stored": 13
+    },
+    "bySourceSelected": {
+      "OpenAI Blog": 7,
+      "量子位": 3,
+      "HN": 3
+    },
+    "droppedByReason": {
+      "duplicate-url-batch": 2,
+      "duplicate-url-history": 2,
+      "missing-url": 0,
+      "semantic-duplicate": 2,
+      "overflow": 23
+    },
+    "warnings": 0,
+    "report": {
+      "sha256": "a86699a9f3730507b15bddcc350d864bd12f9fa3369b7bb6fa098376eabc0c1b",
+      "items": 10,
+      "omitted": 3
+    },
+    "calibration": {
+      "sameEventMin": 0.054,
+      "differentEventMax": 0.667,
+      "suggestedDupThreshold": 0.687,
+      "suggestedGrayLow": 0.034,
+      "falseDrops": 0,
+      "scores": [
+        0.375,
+        0.11,
+        0.054,
+        0.183,
+        0.86,
+        0.4,
+        0.12,
+        0.667,
+        0.141,
+        0.27
+      ]
+    }
+  }
+}

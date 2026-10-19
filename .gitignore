@@ -5,6 +5,8 @@ out/
 # 运行产物
 outbox/
 *.log
+# 回放跑出来的日报快照与漏斗，只在本机看，不进版本库
+harness/.artifacts/
 
 # 密钥：只提交 .env.example
 .env

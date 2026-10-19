@@ -1,0 +1,22 @@
+name: verify
+
+# 验证闸门。这条流水线的故障是静默的行为变化，不是编译错误，
+# 所以 CI 里跑的是同一套本地命令：typecheck + 单元测试 + 回放基线。
+# 回放不联网、不连 Redis、不要密钥，可以放心放在 CI 里。
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
