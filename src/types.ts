@@ -58,6 +58,8 @@ export interface Stats {
   semanticDropped: number;
   semanticSuspect: number;
   delivered: number;
+  /** 日报「链接汇总」里实际列出的条数。必须等于 delivered，不等就是日报漏了内容 */
+  listed: number;
   stored: number;
 }
 
@@ -74,6 +76,7 @@ export function emptyStats(): Stats {
     semanticDropped: 0,
     semanticSuspect: 0,
     delivered: 0,
+    listed: 0,
     stored: 0,
   };
 }

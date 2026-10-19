@@ -81,6 +81,7 @@ const StatsSchema = z.object({
   semanticDropped: z.number().int(),
   semanticSuspect: z.number().int(),
   delivered: z.number().int(),
+  listed: z.number().int(),
   stored: z.number().int(),
 });
 
@@ -92,14 +93,10 @@ const ExpectSchema = z.object({
   warnings: z.number().int(),
   report: z.object({
     sha256: z.string(),
+    /** 正文（### 标题）条数：受三档配额限制，是精选结果 */
     items: z.number().int(),
-    /**
-     * 送达了但没出现在日报正文里的条数。当前实现会有这个缺口：
-     * 三个分档合计最多 13 条，多出来的既不进正文也不进链接汇总，
-     * 但表头的「共 N 条」把它们算进去了。这是已知缺陷，先钉住数量，
-     * 修好之后这里应当变成 0，届时这条断言会红——那是有意的红。
-     */
-    omitted: z.number().int(),
+    /** 链接汇总条数：必须等于 delivered，否则日报漏了内容却照样写进了历史 */
+    listed: z.number().int(),
   }),
   /** 编码器指纹：换分词器、换维度、换模型，这些数字必然变 */
   calibration: z.object({

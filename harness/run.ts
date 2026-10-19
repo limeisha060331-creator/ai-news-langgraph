@@ -199,6 +199,7 @@ export async function runReplay(options: RunOptions = {}): Promise<ReplayResult>
   const droppedByReason = countBy(result.dropped.map((row) => row.reason));
   const bySourceSelected = countBy(result.articles.map((row) => row.source));
   const reportItems = (result.report.match(/^### /gm) ?? []).length;
+  const reportListed = (result.report.match(/^- \[/gm) ?? []).length;
   const reportHash = sha256(result.report);
 
   type ExpectStats = Fixture["expect"]["stats"];
@@ -218,11 +219,12 @@ export async function runReplay(options: RunOptions = {}): Promise<ReplayResult>
   const quotaChecks = checker.take();
 
   checker.check("report.items", fixture.expect.report.items, reportItems);
+  checker.check("report.listed", fixture.expect.report.listed, reportListed);
   checker.check(
-    "report.omitted",
-    fixture.expect.report.omitted,
-    result.articles.length - reportItems,
-    "送达条数减正文条数：不为 0 说明有内容进了历史却没进日报",
+    "report.coversDelivered",
+    stats.delivered,
+    reportListed,
+    "日报的链接汇总必须覆盖送达的每一条：少列的那些会被写进历史，读者再也看不到",
   );
   checker.check("report.sha256", fixture.expect.report.sha256, reportHash);
   checker.check("warnings", fixture.expect.warnings, result.warnings.length);
@@ -425,7 +427,7 @@ export function updateBaseline(fixturePath: string, result: ReplayResult): void 
     report: {
       sha256: sha256(result.report),
       items: (result.report.match(/^### /gm) ?? []).length,
-      omitted: result.stats.delivered - (result.report.match(/^### /gm) ?? []).length,
+      listed: (result.report.match(/^- \[/gm) ?? []).length,
     },
     calibration: {
       sameEventMin: result.calibration.sameEventMin,

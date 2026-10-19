@@ -50,7 +50,7 @@ async function ingest(): Promise<number> {
         `抓取 ${stats.fetched} 条 → URL 去重后 ${stats.afterUrlDedup} 条 → 候选 ${stats.selected} 条`,
         `摘要 ${stats.summarized} 条（降级 ${stats.summaryDegraded} 条）→ 编码 ${stats.embedded} 条`,
         `语义判重 ${stats.semanticDropped} 条 · 疑似 ${stats.semanticSuspect} 条`,
-        `推送 ${stats.delivered} 条 · 写回 ${stats.stored} 条`,
+        `推送 ${stats.delivered} 条（链接汇总 ${stats.listed} 条）· 写回 ${stats.stored} 条`,
         `丢弃分布：${JSON.stringify(droppedByReason)}`,
         result.warnings.length ? `警告：\n  ${result.warnings.join("\n  ")}` : "警告：无",
         "",

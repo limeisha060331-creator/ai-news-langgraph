@@ -1,6 +1,6 @@
 # AGENTS.md
 
-给在这个仓库里干活的 agent 看的。这里只写规则，不写项目介绍——介绍在 [README.md](README.md)。
+给在这个仓库里干活的 agent 看的。只写规则，不写项目介绍，介绍在 [README.md](README.md)。
 
 ## 一条命令
 
@@ -12,9 +12,9 @@ npm run verify     # = typecheck + vitest（含回放基线）
 
 > 本机 PowerShell 执行策略是 `Restricted`，`npm` 可能被拦；这时用 `npm.cmd`。
 
-## 这个仓库的正确性在哪
+## 什么会悄悄坏
 
-不在类型里。下面这几件事改错了，`tsc` 一句都不会报，只会让某天的日报少三条，
+`tsc` 报不了的那类问题都在下面。这几处改错，编译照样过，后果是某天日报少三条，
 或者把昨天推过的内容再推一遍：
 
 - 节点顺序（`normalize` 在 `summarize` 之前，`rank` 在 `summarize` 之前）
@@ -39,6 +39,7 @@ src/nodes/summarize.ts   逐条结构化摘要，整批失败时逐条降级
 src/nodes/embed.ts       对「中文标题 + 中文摘要」编码（跨语言去重靠这一步）
 src/nodes/dedupe.ts      历史 KNN + 批内余弦，两级阈值
 src/nodes/deliver.ts     代码分档拼日报并落盘（不让模型决定版面）
+src/lib/report.ts        版面的唯一来源：三档配额、正文精选、链接汇总覆盖全部条目
 src/nodes/store.ts       写回跨天状态，只在送达成功时执行
 src/redis/schema.ts      两类键（article: 带向量 / seen: 只记 URL）与查询
 src/lib/url.ts           URL 归一化规则，必须与第一版 Python 实现保持一致
@@ -57,6 +58,9 @@ harness/                 回放回归台，见 harness/README.md
    把这两段反过来、或者删掉同源加严，回放里的 `same-source-margin-suspect` 会红。
 5. **`1 - 距离` 的换算**：COSINE 返回距离不是相似度，漏了换算，阈值含义正好反了。
 6. **URL 归一化规则**：与第一版 Python 实现共用一套，`TRACKING_PARAMS` 少一条就会出现重复推送。
+7. **日报必须覆盖送达集合**：正文三档是精选（容量 13，其中 4–5 分只占 7 个位置），
+   没进正文的条目必须出现在链接汇总里。`renderReport` 的 `listed` 恒等于 `delivered`；
+   破坏了 `npm test` 与回放的 `report.coversDelivered` 会同时红。
 
 ## 改了行为怎么办
 
@@ -74,4 +78,9 @@ harness/                 回放回归台，见 harness/README.md
 ## 已知缺陷与盲区
 
 见 [harness/README.md](harness/README.md) 的「它没覆盖什么」与 README 的「已知限制」。
-当前最该修的一条：日报分档之外的行会静默消失（`report.omitted`），详见 README。
+
+日报丢条那个缺陷已经修了，但这次的形状值得记住：「正文分档」的容量（恒为 13，4–5 分只有 7 个位置）
+和「写回历史」的集合（`state.articles` 全量）各走各的，中间那段差额就是永久丢失。
+以后凡是加「只让读者看一部分」的逻辑，先回答一句：另一部分去哪了。
+`renderReport` 现在返回 `{ markdown, placed, listed }`，`listed` 必须等于 `delivered`，
+`deliver` 里不等会直接记 error + warning。

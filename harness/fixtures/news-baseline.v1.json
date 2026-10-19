@@ -406,6 +406,7 @@
       "semanticDropped": 2,
       "semanticSuspect": 1,
       "delivered": 13,
+      "listed": 13,
       "stored": 13
     },
     "bySourceSelected": {
@@ -422,9 +423,9 @@
     },
     "warnings": 0,
     "report": {
-      "sha256": "a86699a9f3730507b15bddcc350d864bd12f9fa3369b7bb6fa098376eabc0c1b",
+      "sha256": "ae7d33ac87203ebc67d6b93fabb30781628601425a7af24ac0e4c78f4d4ec76d",
       "items": 10,
-      "omitted": 3
+      "listed": 13
     },
     "calibration": {
       "sameEventMin": 0.054,
