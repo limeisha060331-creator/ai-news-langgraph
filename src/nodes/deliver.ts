@@ -16,8 +16,11 @@ import { renderReport } from "../lib/report.js";
  * 送达是 store 的前置条件（图里用条件边表达）：没有送达就不写历史。
  * 反过来也有一条硬约束：日报必须覆盖本次送达的每一条（见 renderReport 的契约），
  * 否则「写回历史」会把读者没见过的内容标记成已推送。
+ *
+ * 参数名是 `_deps`：版面渲染迁到 lib/report.ts 之后这里确实用不到 deps，但保留参数位置，
+ * 让八个节点工厂的签名保持一致（依赖一律从 Deps 注入）。TS 对 `_` 前缀的未使用参数不作检查。
  */
-export function createDeliverNode(deps: Deps) {
+export function createDeliverNode(_deps: Deps) {
   return async function deliverNode(state: IngestionStateType): Promise<Partial<IngestionUpdate>> {
     const articles = state.articles;
     if (articles.length === 0) {

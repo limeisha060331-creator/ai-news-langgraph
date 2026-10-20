@@ -13,9 +13,10 @@
     "calibrate": "tsx src/index.ts calibrate",
     "redis:init": "tsx src/index.ts redis-init",
     "typecheck": "tsc --noEmit",
+    "check:unused": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
     "test": "vitest run --pool=threads",
     "harness": "tsx harness/replay.ts",
-    "verify": "npm run typecheck && npm test && npm run harness"
+    "verify": "npm run typecheck && npm run check:unused && npm test && npm run harness"
   },
   "dependencies": {
     "@langchain/core": "^1.2.17",

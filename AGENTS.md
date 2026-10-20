@@ -5,7 +5,7 @@
 ## 一条命令
 
 ```bash
-npm run verify     # = typecheck + vitest（含回放基线）
+npm run verify     # = typecheck + check:unused + vitest（含回放基线）+ harness
 ```
 
 绿了才算改完。不要用「我读了一遍，逻辑没问题」代替它。
@@ -26,6 +26,10 @@ npm run verify     # = typecheck + vitest（含回放基线）
 
 这些行为由回放基线守着：`harness/fixtures/news-baseline.v1.json` + `harness/replay.test.ts`。
 它把一份冻结的三源输入灌进整条图，比对漏斗数字、10 条行为用例、编码器指纹。
+
+未使用的导入、局部变量与参数是另一类：它们由 `npm run check:unused`
+（`tsc --noUnusedLocals --noUnusedParameters`）兜住。为了保持节点工厂签名而故意留的参数，
+名字用 `_` 前缀（见 `src/nodes/deliver.ts` 的 `_deps`），TS 对这类参数放行。
 
 ## 项目地图
 
