@@ -156,6 +156,7 @@ export function buildChatGraph(options: ChatGraphOptions) {
         userId,
         deps.config.MEMORY_TOP_K,
         runtime.executionInfo?.threadId,
+        question,
       );
       return {
         question,

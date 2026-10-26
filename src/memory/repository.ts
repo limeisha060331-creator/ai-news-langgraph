@@ -43,11 +43,27 @@ export async function readMemory(
   userId: string,
   limit: number,
   excludeThreadId?: string,
+  query?: string,
 ): Promise<string> {
-  const [profile, episodes] = await Promise.all([
+  const recentLimit = excludeThreadId ? limit + 1 : limit;
+  const [profile, recent] = await Promise.all([
     store.get(profileNamespace(userId), "default"),
-    store.search(episodeNamespace(userId), { limit: excludeThreadId ? limit + 1 : limit }),
+    store.search(episodeNamespace(userId), { limit: recentLimit }),
   ]);
+
+  // 先按语义取和历史结论，再用最近结论补足。Store 没配向量时
+  // `query` 会被忽略，结果自然退化成「最近 N 条」。
+  const semantic =
+    query && query.trim()
+      ? await store
+          .search(episodeNamespace(userId), { query, limit: recentLimit })
+          .catch(() => [])
+      : [];
+  const seen = new Set(semantic.map((item) => item.key));
+  const episodes = [
+    ...semantic,
+    ...recent.filter((item) => !seen.has(item.key)),
+  ].slice(0, recentLimit);
 
   const profileText = valueText(profile);
   const episodeRows = episodes

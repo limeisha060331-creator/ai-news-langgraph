@@ -1,4 +1,5 @@
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
+import { Embeddings } from "@langchain/core/embeddings";
 import { InMemoryStore, MemorySaver } from "@langchain/langgraph";
 import { describe, expect, it } from "vitest";
 
@@ -7,10 +8,24 @@ import { buildChatGraph } from "../src/graph/chat.js";
 import { MockEmbeddingProvider } from "../src/lib/embedding.js";
 import { MockSummarizer } from "../src/lib/llm.js";
 import type { ConversationSummarizer } from "../src/lib/conversation.js";
-import { rememberProfile } from "../src/memory/repository.js";
+import { readMemory, rememberProfile, writeEpisode } from "../src/memory/repository.js";
 import type { MemoryRuntime } from "../src/memory/runtime.js";
 import type { Deps } from "../src/nodes/deps.js";
 import type { StoredArticle } from "../src/redis/schema.js";
+
+class TestEmbeddings extends Embeddings {
+  constructor(private readonly provider: MockEmbeddingProvider) {
+    super({});
+  }
+
+  async embedDocuments(documents: string[]): Promise<number[][]> {
+    return this.provider.embed(documents);
+  }
+
+  async embedQuery(document: string): Promise<number[]> {
+    return (await this.provider.embed([document]))[0] ?? [];
+  }
+}
 
 function testConfig(overrides: Partial<Config> = {}): Config {
   return {
@@ -230,5 +245,25 @@ describe("对话图：历史压缩", () => {
     expect(result.answer.length).toBeGreaterThan(0);
     expect(result.warnings.some((line) => line.includes("摘要失败"))).toBe(true);
     expect(result.messages).toHaveLength(5); // 原文没有被裁掉
+  });
+});
+
+describe("长期记忆检索", () => {
+  it("按问题语义取回更相关的历史结论", async () => {
+    const embedder = new MockEmbeddingProvider(64);
+    const store = new InMemoryStore({
+      index: {
+        dims: 64,
+        fields: ["text"],
+        embeddings: new TestEmbeddings(embedder),
+      },
+    });
+
+    await writeEpisode(store, "u1", "thread-a", "Agent 安全有哪些进展", "回答一");
+    await writeEpisode(store, "u1", "thread-b", "多模态模型发布", "回答二");
+
+    const memory = await readMemory(store, "u1", 1, undefined, "Agent 安全");
+    expect(memory).toContain("Agent 安全");
+    expect(memory).not.toContain("多模态模型发布");
   });
 });

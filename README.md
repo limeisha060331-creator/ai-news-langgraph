@@ -148,7 +148,7 @@ src/
   retrieval/              混合召回、RRF 融合、证据卡
   lib/                    工具：URL、HTTP、RSS、编码、摘要、回答、报告、标定
   fixtures/               标定用例
-tests/                    41 个用例，9 个文件
+tests/                    42 个用例，9 个文件
 docs/                     架构、Redis 设计、阈值标定说明
 ```
 
