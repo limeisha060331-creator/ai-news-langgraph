@@ -19,8 +19,17 @@ export interface Neighbor {
   urlKey: string;
   title: string;
   source: string;
+  /** 检索结果补齐的文章字段；缺字段时保持 undefined，回答层不要假装有 */
+  url?: string;
+  summary?: string;
+  published?: string;
+  importance?: number;
   /** 余弦相似度，已从 Redis 返回的距离换算过来 */
   similarity: number;
+  /** 关键词通道的原始命中分；只有文本检索会填 */
+  keywordScore?: number;
+  /** RRF 融合分；只有多路召回会填 */
+  fusedScore?: number;
 }
 
 /**
@@ -146,6 +155,47 @@ export async function existingUrlKeys(
   return found;
 }
 
+/**
+ * 按 urlKey 取完整文档。
+ *
+ * KNN / FT.SEARCH 只返回索引字段，摘要、链接这些不一定在索引里。
+ * 检索命中后再按 key 取一次，避免为了返回字段去改一套线上索引；
+ * 索引升级是下一步，不要把「能返回摘要」和「能建索引」绑在一起。
+ */
+export async function getArticlesByKeys(
+  client: RedisClient,
+  urlKeys: string[],
+): Promise<Map<string, StoredArticle>> {
+  const unique = [...new Set(urlKeys)];
+  const found = new Map<string, StoredArticle>();
+  for (const urlKey of unique) {
+    const doc = (await client.json.get(articleKey(urlKey))) as StoredArticle | null;
+    if (doc) found.set(urlKey, doc);
+  }
+  return found;
+}
+
+/** 把检索命中补成「标题 + 摘要 + 链接 + 日期」的候选，供证据卡使用。 */
+export async function enrichNeighbors(
+  client: RedisClient,
+  neighbors: Neighbor[],
+): Promise<Neighbor[]> {
+  if (neighbors.length === 0) return [];
+  const docs = await getArticlesByKeys(client, neighbors.map((row) => row.urlKey));
+  return neighbors.map((row) => {
+    const doc = docs.get(row.urlKey);
+    if (!doc) return row;
+    return {
+      ...row,
+      title: row.title || doc.titleZh || doc.title,
+      url: doc.url,
+      summary: doc.summary,
+      published: doc.published,
+      importance: doc.importance,
+    };
+  });
+}
+
 export interface KnnOptions {
   k: number;
   /** 只在这个时间点之后推送过的条目里找邻居，0 表示不限 */
@@ -185,6 +235,64 @@ export async function knnSearch(
       title: String(value.title ?? ""),
       source: String(value.source ?? ""),
       similarity: similarityFromScore(Number(value.vectorScore ?? 1)),
+    };
+  });
+}
+
+function escapeQueryTerm(term: string): string {
+  return term.replace(/([\\\-:[\]{}()|@*"~])/g, "\\$1");
+}
+
+/**
+ * 从问题里抽可检索的词。
+ *
+ * 中文没有空格，RediSearch 的默认分词对中文不友好；这里先按 2 字滑窗切，
+ * 至少让「Agent 进展」这类问题能命中标题里的中文片段。英文按单词切。
+ * 这不是最终方案，索引升级时应该换成统一的 text 字段和正式分词器。
+ */
+function queryTerms(question: string): string[] {
+  const latin = question.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  const cjkRuns = question.match(/[\u4e00-\u9fff]+/g) ?? [];
+  const cjk = cjkRuns.flatMap((run) => {
+    if (run.length <= 2) return [run];
+    return Array.from({ length: run.length - 1 }, (_, index) => run.slice(index, index + 2));
+  });
+  return [...latin, ...cjk]
+    .filter((term) => term.length >= 2)
+    .map(escapeQueryTerm)
+    .slice(0, 10);
+}
+
+/**
+ * 标题关键词检索。只查已有 title 字段，不要求先升级索引。
+ * 失败时由调用方降级到纯向量召回，不能因为关键词通道出错就让整个查询空手。
+ */
+export async function textSearch(
+  client: RedisClient,
+  indexName: string,
+  question: string,
+  options: KnnOptions,
+): Promise<Neighbor[]> {
+  const since = options.sinceEpochSeconds
+    ? `(@pushedAt:[${options.sinceEpochSeconds} +inf])`
+    : "(*)";
+  const terms = queryTerms(question);
+  const query = terms.length > 0 ? `${since} (@title:(${terms.join("|")}))` : since;
+
+  const result = await client.ft.search(indexName, query, {
+    SORTBY: { BY: "pushedAt", DIRECTION: "DESC" },
+    RETURN: ["urlKey", "title", "source"],
+    LIMIT: { from: 0, size: options.k },
+  });
+
+  return result.documents.map((document) => {
+    const value = document.value as Record<string, unknown>;
+    return {
+      urlKey: String(value.urlKey ?? ""),
+      title: String(value.title ?? ""),
+      source: String(value.source ?? ""),
+      similarity: 0,
+      keywordScore: 1,
     };
   });
 }

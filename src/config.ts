@@ -33,6 +33,9 @@ const EnvSchema = z.object({
   GRAY_LOW: z.coerce.number().min(0).max(1).default(0.8),
   SAME_SOURCE_MARGIN: z.coerce.number().min(0).max(1).default(0.03),
   KNN_TOP_K: z.coerce.number().int().positive().default(5),
+  RETRIEVAL_TOP_K: z.coerce.number().int().positive().default(20),
+  EVIDENCE_TOP_K: z.coerce.number().int().positive().default(6),
+  CONTEXT_BUDGET: z.coerce.number().int().positive().default(32000),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

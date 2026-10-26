@@ -70,17 +70,22 @@ async function query(args: string[]): Promise<number> {
   }
   const daysFlag = args.find((arg) => arg.startsWith("--days="));
   const sinceDays = daysFlag ? Number(daysFlag.split("=")[1]) : 30;
+  const explainContext = args.includes("--explain-context");
 
   const runtime = await createRuntime();
   try {
     const graph = buildQueryGraph(runtime.deps);
     const result = (await graph.invoke({ question, sinceDays })) as QueryStateType;
 
-    process.stdout.write(["\n=== 回答 ===", result.answer, "", "=== 引用 ==="].join("\n"));
-    for (const [index, row] of result.neighbors.entries()) {
+    process.stdout.write(["\n=== 回答 ===", result.answer, "", "=== 证据 ==="].join("\n"));
+    for (const row of result.evidence) {
       process.stdout.write(
-        `[${index + 1}] ${row.title} — ${row.source}（相似度 ${row.similarity.toFixed(3)}）\n`,
+        `[${row.id}] ${row.title} — ${row.source}（相似度 ${row.similarity.toFixed(3)}）\n` +
+          `    ${row.url}\n`,
       );
+    }
+    if (explainContext && result.contextReport) {
+      process.stdout.write(`\n=== 上下文报告 ===\n${JSON.stringify(result.contextReport, null, 2)}\n`);
     }
     process.stdout.write("\n");
     return 0;

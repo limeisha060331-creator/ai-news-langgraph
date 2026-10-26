@@ -87,3 +87,22 @@ export interface Answer {
   answer: string;
   citations: Array<{ title: string; url: string; published: string; score: number }>;
 }
+
+/**
+ * 回答层看到的证据卡。
+ *
+ * 原文不进上下文，只保留「结论 + 可核对字段 + 链接」。
+ * id 用 E1、E2 这种短标识，方便模型在回答里逐条引用。
+ */
+export interface EvidenceCard {
+  id: string;
+  title: string;
+  summary: string;
+  url: string;
+  source: string;
+  published: string;
+  importance: number;
+  similarity: number;
+  score: number;
+  tokens: number;
+}

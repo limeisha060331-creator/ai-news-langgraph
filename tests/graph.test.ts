@@ -64,6 +64,9 @@ function fakeConfig(): Config {
     GRAY_LOW: 0.8,
     SAME_SOURCE_MARGIN: 0.03,
     KNN_TOP_K: 5,
+    RETRIEVAL_TOP_K: 20,
+    EVIDENCE_TOP_K: 6,
+    CONTEXT_BUDGET: 32000,
   };
 }
 
