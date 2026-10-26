@@ -102,6 +102,16 @@ npm run ingest
 npm run query -- "过去一周 Agent 有哪些进展"
 ```
 
+**· 多轮对话**
+
+```bash
+npm run chat -- --thread=demo --user=demo "过去一周 Agent 有哪些进展"
+npm run chat -- --thread=demo --user=demo "展开说说第二条"
+```
+
+同一个 `--thread` 会接着上次的对话；同一个 `--user` 跨线程共享偏好。加
+`--explain-context` 可以看到这一轮的预算、摘要版本和长期记忆。
+
 **· 标定阈值**
 
 ```bash
@@ -120,6 +130,7 @@ src/
     state.ts              摄入图的状态与 reducer
     ingestion.ts          摄入图：节点与边的连线
     query.ts              查询图
+    chat.ts               对话图：记忆、检索、压缩、回答、写回
   nodes/
     fetch.ts              抓三个源，单源失败只记警告
     normalize.ts          URL 归一化、批内去重、历史过滤
@@ -132,9 +143,12 @@ src/
   redis/
     client.ts             连接与向量能力探测
     schema.ts             索引定义、KNN 查询、写入
+  context/                token 估算、证据装包、对话历史切分
+  memory/                 线程内 checkpoint 与跨线程 Store
+  retrieval/              混合召回、RRF 融合、证据卡
   lib/                    工具：URL、HTTP、RSS、编码、摘要、回答、报告、标定
   fixtures/               标定用例
-tests/                    25 个用例，6 个文件
+tests/                    41 个用例，9 个文件
 docs/                     架构、Redis 设计、阈值标定说明
 ```
 
@@ -147,6 +161,12 @@ docs/                     架构、Redis 设计、阈值标定说明
 **· `npm run query -- "问题"`**
 
 跑查询图，输出回答和引用条目。默认检索最近 30 天，用 `--days=7` 改范围。
+
+**· `npm run chat -- --thread=ID --user=ID "问题"`**
+
+跑对话图。`thread` 决定线程内的对话记忆，`user` 决定跨线程的偏好和结论。
+默认存储是 Redis，30 天没活动的 checkpoint 会过期；测试和本地演示可以设
+`MEMORY_PROVIDER=memory`。
 
 **· `npm run calibrate`**
 
@@ -173,6 +193,28 @@ docs/                     架构、Redis 设计、阈值标定说明
 `npm run calibrate`**：同一个数字在不同编码器上对应的含义完全不同。第一版用词法编码器
 实测的结果是，同语言近重复 0.837、跨语言同事件 0.073 至 0.296、不同事件同源 0.667，
 单一阈值无法区分，所以标定脚本会如实报告「不可分」而不是硬给一个数。
+
+## 记忆与上下文
+
+对话图按笔记里的四个动作分工：
+
+```
+loadMemory → retrieve → buildEvidence → compressHistory → compose → writeMemory
+```
+
+| 动作 | 在这个项目里是什么 | 写在哪 |
+| --- | --- | --- |
+| Write | 只写偏好和每轮结论，不写新闻原文 | `memory/repository.ts` |
+| Select | 向量加标题关键词两路召回，融合后取前 `EVIDENCE_TOP_K` 条 | `retrieval/hybrid.ts` |
+| Compress | 先压成证据卡，再把超预算的旧对话压成四行摘要 | `context/budget.ts`、`context/history.ts` |
+| Isolate | 线程消息进 checkpointer，跨线程记忆进 Store，回答层只看证据卡 | `graph/chat.ts`、`memory/runtime.ts` |
+
+预算分四块：证据占 `CONTEXT_BUDGET` 的 40%，摘要占 15%，长期记忆占 10%，
+最近对话单独受 `CHAT_HISTORY_BUDGET` 限制。历史没超过预算就不调用摘要器，
+避免每轮都花一次模型调用。摘要失败时保留原文，本轮照常回答。
+
+证据编号从 `E1` 开始，回答里的 `[E1]` 能直接对上本轮证据卡。检索追问时，
+短问题会拼上一条用户问题再检索，解决「展开第二条」这类指代。
 
 方法与数据见 [docs/thresholds.md](docs/thresholds.md)。
 

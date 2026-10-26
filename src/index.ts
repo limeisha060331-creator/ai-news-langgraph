@@ -4,9 +4,12 @@ import { calibrate, formatReport } from "./lib/calibrate.js";
 import { log } from "./lib/logger.js";
 import { buildIngestionGraph } from "./graph/ingestion.js";
 import { buildQueryGraph } from "./graph/query.js";
+import { buildChatGraph, type ChatStateType } from "./graph/chat.js";
 import { finalizeStats, type IngestionStateType } from "./graph/state.js";
 import type { QueryStateType } from "./graph/query.js";
 import { ensureIndex, indexHealth } from "./redis/schema.js";
+import { createMemoryRuntime } from "./memory/runtime.js";
+import { HumanMessage } from "@langchain/core/messages";
 
 function usage(): void {
   process.stdout.write(
@@ -14,6 +17,7 @@ function usage(): void {
       "用法：",
       "  npm run ingest                       跑一次摄入图（抓取 → 去重 → 摘要 → 编码 → 语义去重 → 出日报 → 写回）",
       '  npm run query -- "过去一周 Agent 有哪些进展"   跑查询图',
+      '  npm run chat -- --thread=demo --user=demo "问题"   带记忆的多轮问答（同 thread 续聊）',
       "  npm run calibrate                    用标注样本标定去重阈值",
       "  npm run redis:init                   建向量索引",
       "",
@@ -94,6 +98,73 @@ async function query(args: string[]): Promise<number> {
   }
 }
 
+function flag(args: string[], name: string): string | undefined {
+  return args.find((arg) => arg.startsWith(`--${name}=`))?.split("=").slice(1).join("=");
+}
+
+async function chat(args: string[]): Promise<number> {
+  const question = args
+    .filter((arg) => !arg.startsWith("--"))
+    .join(" ")
+    .trim();
+  if (!question) {
+    process.stderr.write(
+      '要带一个问题，例如：npm run chat -- --thread=demo --user=demo "过去一周 Agent 有哪些进展"\n',
+    );
+    return 1;
+  }
+
+  const threadId = flag(args, "thread") ?? "demo";
+  const userId = flag(args, "user") ?? "demo";
+  const daysFlag = flag(args, "days");
+  const sinceDays = daysFlag ? Number(daysFlag) : 0;
+  const explainContext = args.includes("--explain-context");
+
+  const runtime = await createRuntime();
+  const memory = await createMemoryRuntime(runtime.config, runtime.deps.embedder);
+  try {
+    const graph = buildChatGraph({ deps: runtime.deps, memory });
+    const result = (await graph.invoke(
+      { messages: [new HumanMessage(question)], sinceDays },
+      {
+        configurable: { thread_id: threadId },
+        context: { userId },
+      },
+    )) as ChatStateType;
+
+    process.stdout.write(
+      [
+        "",
+        `=== 回答（thread=${threadId} user=${userId}）===`,
+        result.answer,
+        "",
+        "=== 证据 ===",
+      ].join("\n"),
+    );
+    for (const row of result.evidence) {
+      process.stdout.write(
+        `[${row.id}] ${row.title} — ${row.source}（相似度 ${row.similarity.toFixed(3)}）\n` +
+          `    ${row.url}\n`,
+      );
+    }
+    if (result.warnings.length > 0) {
+      process.stdout.write(`\n=== 警告 ===\n${result.warnings.join("\n")}\n`);
+    }
+    if (explainContext) {
+      process.stdout.write(
+        `\n=== 上下文报告 ===\n${JSON.stringify(result.contextReport, null, 2)}\n` +
+          `\n=== 摘要（第 ${result.summaryVersion} 版）===\n${result.summary || "（无）"}\n` +
+          `\n=== 长期记忆 ===\n${result.memory || "（无）"}\n`,
+      );
+    }
+    process.stdout.write("\n");
+    return 0;
+  } finally {
+    await memory.close();
+    await runtime.close();
+  }
+}
+
 async function calibrateCommand(): Promise<number> {
   const runtime = await createRuntime();
   try {
@@ -143,6 +214,8 @@ async function main(): Promise<number> {
       return ingest();
     case "query":
       return query(rest);
+    case "chat":
+      return chat(rest);
     case "calibrate":
       return calibrateCommand();
     case "redis-init":

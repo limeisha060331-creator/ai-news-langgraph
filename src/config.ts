@@ -36,6 +36,12 @@ const EnvSchema = z.object({
   RETRIEVAL_TOP_K: z.coerce.number().int().positive().default(20),
   EVIDENCE_TOP_K: z.coerce.number().int().positive().default(6),
   CONTEXT_BUDGET: z.coerce.number().int().positive().default(32000),
+
+  MEMORY_PROVIDER: z.enum(["memory", "redis"]).default("redis"),
+  CHECKPOINT_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  MEMORY_TOP_K: z.coerce.number().int().positive().default(5),
+  CHAT_HISTORY_BUDGET: z.coerce.number().int().positive().default(6000),
+  CHAT_KEEP_RECENT: z.coerce.number().int().min(2).default(4),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

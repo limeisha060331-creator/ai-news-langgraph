@@ -53,6 +53,11 @@ function testConfig(): Config {
     RETRIEVAL_TOP_K: 20,
     EVIDENCE_TOP_K: 6,
     CONTEXT_BUDGET: 32000,
+    MEMORY_PROVIDER: "memory",
+    CHECKPOINT_TTL_DAYS: 30,
+    MEMORY_TOP_K: 5,
+    CHAT_HISTORY_BUDGET: 6000,
+    CHAT_KEEP_RECENT: 4,
   };
 }
 

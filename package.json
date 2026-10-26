@@ -10,6 +10,7 @@
   "scripts": {
     "ingest": "tsx src/index.ts ingest",
     "query": "tsx src/index.ts query",
+    "chat": "tsx src/index.ts chat",
     "calibrate": "tsx src/index.ts calibrate",
     "redis:init": "tsx src/index.ts redis-init",
     "typecheck": "tsc --noEmit",
@@ -21,6 +22,7 @@
   "dependencies": {
     "@langchain/core": "^1.2.17",
     "@langchain/langgraph": "^1.4.21",
+    "@langchain/langgraph-checkpoint-redis": "^1.1.0",
     "dotenv": "^18.0.6",
     "fast-xml-parser": "^5.11.2",
     "redis": "^6.3.0",

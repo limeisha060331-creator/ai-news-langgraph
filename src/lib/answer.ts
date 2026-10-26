@@ -6,7 +6,16 @@ import type { EvidenceCard } from "../types.js";
 
 export interface Answerer {
   readonly name: string;
-  answer(question: string, evidence: EvidenceCard[]): Promise<string>;
+  answer(question: string, evidence: EvidenceCard[], extras?: AnswerExtras): Promise<string>;
+}
+
+export interface AnswerExtras {
+  /** 旧对话的结构化摘要 */
+  summary?: string;
+  /** 跨线程的偏好与历史结论 */
+  memory?: string;
+  /** 最近几轮对话原文 */
+  history?: string;
 }
 
 const SYSTEM = [
@@ -25,8 +34,18 @@ export class OpenAiAnswerer implements Answerer {
     this.name = `openai:${config.LLM_MODEL}`;
   }
 
-  async answer(question: string, evidence: EvidenceCard[]): Promise<string> {
+  async answer(
+    question: string,
+    evidence: EvidenceCard[],
+    extras: AnswerExtras = {},
+  ): Promise<string> {
     const context = renderEvidenceCards(evidence);
+    const blocks = [
+      extras.memory ? `长期记忆：\n${extras.memory}` : "",
+      extras.summary ? `对话摘要：\n${extras.summary}` : "",
+      extras.history ? `最近对话：\n${extras.history}` : "",
+      `证据卡：\n${context || "（空）"}`,
+    ].filter(Boolean);
     const response = await requestJson<{ choices: Array<{ message: { content: string } }> }>(
       `${this.config.LLM_BASE_URL.replace(/\/$/, "")}/chat/completions`,
       { ...this.httpOptions, timeoutMs: this.config.LLM_TIMEOUT_MS },
@@ -41,7 +60,7 @@ export class OpenAiAnswerer implements Answerer {
           temperature: 0.2,
           messages: [
             { role: "system", content: SYSTEM },
-            { role: "user", content: `问题：${question}\n\n证据卡：\n${context || "（空）"}` },
+            { role: "user", content: `问题：${question}\n\n${blocks.join("\n\n")}` },
           ],
         }),
       },
@@ -54,7 +73,11 @@ export class OpenAiAnswerer implements Answerer {
 export class MockAnswerer implements Answerer {
   readonly name = "mock";
 
-  async answer(question: string, evidence: EvidenceCard[]): Promise<string> {
+  async answer(
+    question: string,
+    evidence: EvidenceCard[],
+    _extras: AnswerExtras = {},
+  ): Promise<string> {
     if (evidence.length === 0) {
       return `问题「${question}」：检索到的条目里没有相关内容。`;
     }

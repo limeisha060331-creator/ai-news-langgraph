@@ -36,6 +36,10 @@ npm run verify     # = typecheck + check:unused + vitest（含回放基线）+ h
 ```
 src/graph/ingestion.ts   图的连线与唯一一条条件边（deliver → store | END）
 src/graph/state.ts       状态定义；除 articles 外都是累加型 reducer
+src/graph/chat.ts        对话图：记忆 → 检索 → 证据卡 → 压历史 → 回答 → 写记忆
+src/memory/              checkpointer（线程内）与 Store（跨线程）
+src/context/             token 估算、证据装包、历史切分
+src/retrieval/           混合召回、RRF 融合、证据卡
 src/nodes/fetch.ts       三源抓取，单源失败只记警告
 src/nodes/normalize.ts   URL 归一化 + 批内去重 + 历史过滤（不花钱，所以排在模型之前）
 src/nodes/rank.ts        权重排序 + 每源保底 + 总量截断
