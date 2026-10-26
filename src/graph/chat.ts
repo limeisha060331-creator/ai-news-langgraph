@@ -62,7 +62,8 @@ export const ChatState = Annotation.Root({
   }),
   answer: Annotation<string>({ reducer: (_current, update) => update, default: () => "" }),
   warnings: Annotation<string[]>({
-    reducer: (current, update) => current.concat(update),
+    // 每轮由 loadMemory 重置，后面的节点读当前值再追加，避免旧警告跨轮残留。
+    reducer: (_current, update) => update,
     default: () => [],
   }),
   sinceDays: Annotation<number>({ reducer: (_current, update) => update, default: () => 0 }),
@@ -161,6 +162,7 @@ export function buildChatGraph(options: ChatGraphOptions) {
       return {
         question,
         memory: truncateToTokens(loaded, memoryBudget),
+        warnings: [],
       };
     } catch (error: unknown) {
       return {
@@ -237,7 +239,7 @@ export function buildChatGraph(options: ChatGraphOptions) {
       };
     } catch (error: unknown) {
       return {
-        warnings: [`对话摘要失败，保留原文：${reasonOf(error)}`],
+        warnings: [...state.warnings, `对话摘要失败，保留原文：${reasonOf(error)}`],
       };
     }
   }
@@ -260,7 +262,7 @@ export function buildChatGraph(options: ChatGraphOptions) {
     const userId = runtime.context?.userId ?? "default";
     const threadId = runtime.executionInfo?.threadId ?? "unknown";
     const store = runtime.store ?? memory.store;
-    const warnings: string[] = [];
+    const warnings = [...state.warnings];
 
     if (state.answer) {
       const writes: Array<Promise<void>> = [

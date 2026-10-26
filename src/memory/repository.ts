@@ -98,7 +98,9 @@ export async function writeEpisode(
   question: string,
   answer: string,
 ): Promise<void> {
-  const text = `Q: ${question.slice(0, 240)}\nA: ${answer.slice(0, 600)}`;
+  // 证据编号是本轮上下文里的临时坐标，跨线程再读出来会和本轮 E1 撞车。
+  const cleanAnswer = answer.replace(/\[E\d+\]/g, "").replace(/\s+/g, " ").trim();
+  const text = `Q: ${question.slice(0, 240)}\nA: ${cleanAnswer.slice(0, 600)}`;
   const value: EpisodeMemory = {
     text,
     threadId,

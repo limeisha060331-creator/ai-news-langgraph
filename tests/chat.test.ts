@@ -246,6 +246,45 @@ describe("对话图：历史压缩", () => {
     expect(result.warnings.some((line) => line.includes("摘要失败"))).toBe(true);
     expect(result.messages).toHaveLength(5); // 原文没有被裁掉
   });
+
+  it("上一轮的警告不会留到下一轮", async () => {
+    const config = testConfig({ CHAT_HISTORY_BUDGET: 40, CHAT_KEEP_RECENT: 2 });
+    const memory = memoryRuntime();
+    let failOnce = true;
+    const flaky: ConversationSummarizer = {
+      name: "flaky",
+      summarize: async () => {
+        if (failOnce) {
+          failOnce = false;
+          throw new Error("第一次失败");
+        }
+        return "目标：测试压缩";
+      },
+    };
+    const graph = buildChatGraph({
+      deps: fakeDeps(config),
+      memory,
+      summarizer: flaky,
+    });
+
+    const first = await graph.invoke(
+      {
+        messages: [
+          new HumanMessage("旧问题，".repeat(30)),
+          new AIMessage("旧回答，".repeat(30)),
+          new HumanMessage("现在回答我"),
+        ],
+      },
+      runConfig("thread-warning"),
+    );
+    const second = await graph.invoke(
+      { messages: [new HumanMessage("继续")] },
+      runConfig("thread-warning"),
+    );
+
+    expect(first.warnings.length).toBeGreaterThan(0);
+    expect(second.warnings).toHaveLength(0);
+  });
 });
 
 describe("长期记忆检索", () => {
@@ -265,5 +304,14 @@ describe("长期记忆检索", () => {
     const memory = await readMemory(store, "u1", 1, undefined, "Agent 安全");
     expect(memory).toContain("Agent 安全");
     expect(memory).not.toContain("多模态模型发布");
+  });
+
+  it("写长期记忆时去掉上一轮的证据编号", async () => {
+    const store = new InMemoryStore();
+    await writeEpisode(store, "u1", "thread-a", "问题", "答案见 [E1] 和 [E2]。");
+
+    const memory = await readMemory(store, "u1", 1);
+    expect(memory).toContain("答案见");
+    expect(memory).not.toContain("[E1]");
   });
 });
