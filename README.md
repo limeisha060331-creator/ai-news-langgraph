@@ -122,7 +122,7 @@ npm run calibrate
 
 ```
 src/
-  index.ts                命令行入口：ingest / query / calibrate / redis-init
+  index.ts                命令行入口：ingest / query / chat / calibrate / redis-init
   config.ts               环境变量解析与校验
   types.ts                条目、统计、丢弃记录的类型
   bootstrap.ts            组装依赖（Redis、编码器、摘要器）
@@ -148,7 +148,7 @@ src/
   retrieval/              混合召回、RRF 融合、证据卡
   lib/                    工具：URL、HTTP、RSS、编码、摘要、回答、报告、标定
   fixtures/               标定用例
-tests/                    44 个用例，9 个文件
+tests/                    47 个用例，9 个文件
 docs/                     架构、Redis 设计、阈值标定说明
 ```
 
@@ -194,6 +194,8 @@ docs/                     架构、Redis 设计、阈值标定说明
 实测的结果是，同语言近重复 0.837、跨语言同事件 0.073 至 0.296、不同事件同源 0.667，
 单一阈值无法区分，所以标定脚本会如实报告「不可分」而不是硬给一个数。
 
+方法与数据见 [docs/thresholds.md](docs/thresholds.md)。
+
 ## 记忆与上下文
 
 对话图按笔记里的四个动作分工：
@@ -215,8 +217,6 @@ loadMemory → retrieve → buildEvidence → compressHistory → compose → wr
 
 证据编号从 `E1` 开始，回答里的 `[E1]` 能直接对上本轮证据卡。检索追问时，
 短问题会拼上一条用户问题再检索，解决「展开第二条」这类指代。
-
-方法与数据见 [docs/thresholds.md](docs/thresholds.md)。
 
 ## Redis 设计
 
@@ -260,8 +260,9 @@ COSINE 距离返回的是距离，完全相同的向量得分是 0。代码里�
 
 **· 这一版：LangGraph.js 加 Redis**
 
-优点是可测试（25 个用例覆盖归一化、截断配额、阈值标定、报告组装和端到端串联）、
-可版本化、能作为服务嵌进别的系统，检索能力是第一版没有的。
+优点是可测试（47 个用例覆盖归一化、截断配额、阈值标定、报告组装、证据卡、
+多轮记忆和端到端串联）、可版本化、能作为服务嵌进别的系统，检索与多轮对话是
+第一版没有的。
 
 代价是多了一个 Redis 要运维，以及失去了画布：改提示词要改代码再部署。
 
@@ -323,3 +324,14 @@ npm run harness -- --update   # 确认新行为是对的之后更新基线
 当前 deliver 节点把日报写成本地文件。要接到微信或飞书，替换 deliver 节点的实现即可，
 但必须保留「拿到业务返回码再决定是否写历史」这个约束。
 修法是让分档之外的行落进链接汇总、并让表头数等于正文数；改完这条断言会变红，那是有意的红。
+
+**· 对话记忆需要 Redis Stack**
+
+`MEMORY_PROVIDER=redis` 依赖 RedisJSON 与 RediSearch，普通 Redis 镜像起不来
+checkpointer 和 Store。自动化测试统一用 `MEMORY_PROVIDER=memory`，真实 Redis
+的「重启后还能续聊」需要在本机起 Redis Stack 后手工烟测。
+
+**· 每个线程只保留一条最新结论**
+
+长期记忆按 `user_id` 存偏好，按 `thread_id` 存一条最新问答结论，不是完整对话副本。
+更早的内容由线程摘要承担；换线程后只带走过结论，不带原始上下文。

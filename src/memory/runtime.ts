@@ -50,8 +50,11 @@ export async function createMemoryRuntime(
     store: redisStore as unknown as BaseStore,
     checkpointer,
     close: async () => {
-      await redisStore.close();
-      await checkpointer.end();
+      try {
+        await redisStore.close();
+      } finally {
+        await checkpointer.end();
+      }
     },
   };
 }

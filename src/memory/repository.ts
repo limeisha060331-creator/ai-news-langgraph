@@ -1,5 +1,7 @@
 import type { BaseStore } from "@langchain/langgraph";
 
+import { log } from "../lib/logger.js";
+
 export interface EpisodeMemory {
   text: string;
   updatedAt: string;
@@ -57,7 +59,12 @@ export async function readMemory(
     query && query.trim()
       ? await store
           .search(episodeNamespace(userId), { query, limit: recentLimit })
-          .catch(() => [])
+          .catch((error: unknown) => {
+            log.warn("长期记忆语义检索失败，退回最近结论", {
+              reason: error instanceof Error ? error.message : String(error),
+            });
+            return [];
+          })
       : [];
   const seen = new Set(semantic.map((item) => item.key));
   const episodes = [
@@ -90,7 +97,10 @@ export async function readMemory(
   return blocks.join("\n\n");
 }
 
-/** 每轮结束后写一条情节记忆；只保留问答摘要，不保留检索候选。 */
+/**
+ * 每个线程只保留一条最新结论，避免 Store 随轮次线性膨胀。
+ * 只写问答摘要，不写检索候选和新闻原文。
+ */
 export async function writeEpisode(
   store: BaseStore,
   userId: string,

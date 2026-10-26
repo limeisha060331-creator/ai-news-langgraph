@@ -4,7 +4,7 @@ import { InMemoryStore, MemorySaver } from "@langchain/langgraph";
 import { describe, expect, it } from "vitest";
 
 import type { Config } from "../src/config.js";
-import { buildChatGraph } from "../src/graph/chat.js";
+import { buildChatGraph, retrievalQueryOf } from "../src/graph/chat.js";
 import { MockEmbeddingProvider } from "../src/lib/embedding.js";
 import { MockSummarizer } from "../src/lib/llm.js";
 import type { ConversationSummarizer } from "../src/lib/conversation.js";
@@ -126,6 +126,18 @@ const runConfig = (threadId: string, userId = "u1") => ({
 });
 
 describe("对话图：线程记忆", () => {
+  it("短追问拼上上一问，长问题保持原样", () => {
+    const messages = [
+      new HumanMessage("过去一周 Agent 有哪些进展"),
+      new AIMessage("有几条新进展。"),
+      new HumanMessage("展开第二条"),
+    ];
+
+    expect(retrievalQueryOf("展开第二条", messages)).toContain("过去一周 Agent");
+    const longQuestion = "请详细比较过去一个月所有 Agent 框架在记忆与检索上的差异";
+    expect(retrievalQueryOf(longQuestion, messages)).toBe(longQuestion);
+  });
+
   it("同一 thread 的上一轮问答会留在状态里，不同 thread 不串", async () => {
     const config = testConfig();
     const memory = memoryRuntime();
@@ -313,5 +325,18 @@ describe("长期记忆检索", () => {
     const memory = await readMemory(store, "u1", 1);
     expect(memory).toContain("答案见");
     expect(memory).not.toContain("[E1]");
+  });
+
+  it("语义检索失败时退回最近结论", async () => {
+    const store = new InMemoryStore();
+    await writeEpisode(store, "u1", "thread-a", "问题", "最近结论");
+    const originalSearch = store.search.bind(store);
+    store.search = async (namespacePrefix, options) => {
+      if (options?.query) throw new Error("向量库不可用");
+      return originalSearch(namespacePrefix, options);
+    };
+
+    const memory = await readMemory(store, "u1", 1, undefined, "任意问题");
+    expect(memory).toContain("最近结论");
   });
 });

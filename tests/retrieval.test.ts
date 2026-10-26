@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Config } from "../src/config.js";
 import { buildQueryGraph } from "../src/graph/query.js";
 import { packEvidence } from "../src/context/budget.js";
+import { estimateTokens, truncateToTokens } from "../src/context/tokens.js";
 import { MockEmbeddingProvider } from "../src/lib/embedding.js";
 import { MockSummarizer } from "../src/lib/llm.js";
 import type { Deps } from "../src/nodes/deps.js";
@@ -114,6 +115,14 @@ describe("证据预算", () => {
     expect(packed.cards.length).toBeLessThan(cards.length);
     expect(packed.report.droppedEvidence).toBeGreaterThan(0);
     expect(packed.report.estimated).toBe(true);
+  });
+});
+
+describe("token 截断", () => {
+  it("截断后的文本不超过给定预算", () => {
+    const cut = truncateToTokens("甲".repeat(100), 10);
+    expect(estimateTokens(cut)).toBeLessThanOrEqual(10);
+    expect(cut.endsWith("…")).toBe(true);
   });
 });
 

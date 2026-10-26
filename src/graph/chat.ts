@@ -7,6 +7,7 @@ import { estimateTokens, truncateToTokens } from "../context/tokens.js";
 import { createAnswerer, type Answerer } from "../lib/answer.js";
 import {
   createConversationSummarizer,
+  messageTextOf,
   type ConversationSummarizer,
 } from "../lib/conversation.js";
 import type { MemoryRuntime } from "../memory/runtime.js";
@@ -26,10 +27,10 @@ export const ChatContext = Annotation.Root({
   userId: Annotation<string>({ reducer: (_current, update) => update, default: () => "default" }),
 });
 
-export type ChatContextType = typeof ChatContext.State;
+type ChatContextType = typeof ChatContext.State;
 
 /** 压缩时允许改写 messages：数组表示追加，`replace` 表示换成裁剪后的窗口。 */
-export type MessagesUpdate = BaseMessage[] | { replace: BaseMessage[] };
+type MessagesUpdate = BaseMessage[] | { replace: BaseMessage[] };
 
 export const ChatState = Annotation.Root({
   messages: Annotation<BaseMessage[], MessagesUpdate>({
@@ -43,10 +44,6 @@ export const ChatState = Annotation.Root({
     default: () => 0,
   }),
   question: Annotation<string>({ reducer: (_current, update) => update, default: () => "" }),
-  retrievalQuery: Annotation<string>({
-    reducer: (_current, update) => update,
-    default: () => "",
-  }),
   memory: Annotation<string>({ reducer: (_current, update) => update, default: () => "" }),
   neighbors: Annotation<Neighbor[]>({
     reducer: (_current, update) => update,
@@ -70,30 +67,13 @@ export const ChatState = Annotation.Root({
 });
 
 export type ChatStateType = typeof ChatState.State;
-export type ChatUpdate = typeof ChatState.Update;
+type ChatUpdate = typeof ChatState.Update;
 
 export interface ChatGraphOptions {
   deps: Deps;
   memory: MemoryRuntime;
   answerer?: Answerer;
   summarizer?: ConversationSummarizer;
-}
-
-function textOf(message: BaseMessage | undefined): string {
-  if (!message) return "";
-  const content = message.content;
-  if (typeof content === "string") return content.trim();
-  if (!Array.isArray(content)) return "";
-  return content
-    .map((part) => {
-      if (typeof part === "string") return part;
-      if (part && typeof part === "object" && "text" in part) {
-        return String((part as { text?: unknown }).text ?? "");
-      }
-      return "";
-    })
-    .join("")
-    .trim();
 }
 
 function lastHuman(messages: BaseMessage[]): BaseMessage | undefined {
@@ -113,7 +93,7 @@ export function retrievalQueryOf(question: string, messages: BaseMessage[]): str
   for (let index = lastIndex - 1; index >= 0; index -= 1) {
     const message = messages[index]!;
     if (message.getType() !== "human") continue;
-    const previous = textOf(message);
+    const previous = messageTextOf(message);
     if (previous && previous !== question) {
       return `${previous} ${question}`.slice(0, 300);
     }
@@ -147,7 +127,8 @@ export function buildChatGraph(options: ChatGraphOptions) {
     state: ChatStateType,
     runtime: Runtime<ChatContextType>,
   ): Promise<Partial<ChatUpdate>> {
-    const question = textOf(lastHuman(state.messages));
+    const questionMessage = lastHuman(state.messages);
+    const question = questionMessage ? messageTextOf(questionMessage) : "";
     const userId = runtime.context?.userId ?? "default";
     const store = runtime.store ?? memory.store;
 
@@ -184,7 +165,7 @@ export function buildChatGraph(options: ChatGraphOptions) {
       query,
       { k: deps.config.RETRIEVAL_TOP_K, sinceEpochSeconds: daysAgoEpochSeconds(sinceDays) },
     );
-    return { retrievalQuery: query, neighbors };
+    return { neighbors };
   }
 
   async function buildEvidence(state: ChatStateType): Promise<Partial<ChatUpdate>> {
@@ -280,8 +261,8 @@ export function buildChatGraph(options: ChatGraphOptions) {
     }
 
     return {
-      messages: state.answer ? [new AIMessage(state.answer)] : [],
       warnings,
+      ...(state.answer ? { messages: [new AIMessage(state.answer)] } : {}),
     };
   }
 

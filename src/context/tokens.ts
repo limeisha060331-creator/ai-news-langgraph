@@ -21,11 +21,13 @@ export function truncateToTokens(text: string, maxTokens: number): string {
   if (maxTokens <= 0) return "";
   if (estimateTokens(text) <= maxTokens) return text;
 
+  // 末尾的省略号不占估算 token，但先把额度留出来，避免截完反而超预算。
+  const bodyBudget = Math.max(0, maxTokens - 1);
   let low = 0;
   let high = text.length;
   while (low < high) {
     const middle = Math.ceil((low + high) / 2);
-    if (estimateTokens(text.slice(0, middle)) <= maxTokens) {
+    if (estimateTokens(text.slice(0, middle)) <= bodyBudget) {
       low = middle;
     } else {
       high = middle - 1;

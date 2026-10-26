@@ -72,8 +72,11 @@ async function query(args: string[]): Promise<number> {
     process.stderr.write("要带一个问题，例如：npm run query -- \"过去一周 Agent 有哪些进展\"\n");
     return 1;
   }
-  const daysFlag = args.find((arg) => arg.startsWith("--days="));
-  const sinceDays = daysFlag ? Number(daysFlag.split("=")[1]) : 30;
+  const sinceDays = parseDays(flag(args, "days"), 30);
+  if (sinceDays === null) {
+    process.stderr.write("--days 需要是非负整数，例如 --days=7\n");
+    return 1;
+  }
   const explainContext = args.includes("--explain-context");
 
   const runtime = await createRuntime();
@@ -102,6 +105,12 @@ function flag(args: string[], name: string): string | undefined {
   return args.find((arg) => arg.startsWith(`--${name}=`))?.split("=").slice(1).join("=");
 }
 
+function parseDays(value: string | undefined, fallback: number): number | null {
+  if (value === undefined) return fallback;
+  const days = Number(value);
+  return Number.isInteger(days) && days >= 0 ? days : null;
+}
+
 async function chat(args: string[]): Promise<number> {
   const question = args
     .filter((arg) => !arg.startsWith("--"))
@@ -116,8 +125,11 @@ async function chat(args: string[]): Promise<number> {
 
   const threadId = flag(args, "thread") ?? "demo";
   const userId = flag(args, "user") ?? "demo";
-  const daysFlag = flag(args, "days");
-  const sinceDays = daysFlag ? Number(daysFlag) : 0;
+  const sinceDays = parseDays(flag(args, "days"), 0);
+  if (sinceDays === null) {
+    process.stderr.write("--days 需要是非负整数，例如 --days=7\n");
+    return 1;
+  }
   const explainContext = args.includes("--explain-context");
 
   const runtime = await createRuntime();
